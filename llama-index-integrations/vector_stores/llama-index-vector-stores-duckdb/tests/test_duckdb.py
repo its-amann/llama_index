@@ -591,3 +591,28 @@ def test_numeric_metadata_filters_keep_stored_precision() -> None:
     # the whole query with ConversionException; nodes without the key stay out.
     assert ids(5.0, FilterOperator.GT) == ["b", "c", "d"]
     assert ids(9.24, FilterOperator.EQ) == ["b"]
+
+
+def test_numeric_in_and_nin_filters_compare_as_numbers() -> None:
+    """IN and NIN must match stored numbers by value, not by their JSON text."""
+    vector_store = DuckDBVectorStore(embed_dim=2)
+    vector_store.add(
+        [
+            TextNode(id_="b", text="b", embedding=[0.0, 1.0], metadata={"price": 9.24}),
+            TextNode(id_="c", text="c", embedding=[0.5, 0.5], metadata={"price": 9.4}),
+        ]
+    )
+    vector_store.add(
+        [TextNode(id_="e", text="e", embedding=[1.0, 0.0], metadata={"price": 9})]
+    )
+
+    def ids(value, operator) -> List[str]:
+        filters = MetadataFilters(
+            filters=[MetadataFilter(key="price", value=value, operator=operator)]
+        )
+        return sorted(node.node_id for node in vector_store.get_nodes(filters=filters))
+
+    assert ids([9.4, 9.24], FilterOperator.IN) == ["b", "c"]
+    assert ids([9, 9.5], FilterOperator.IN) == ["e"]
+    assert ids([9.2], FilterOperator.IN) == []
+    assert ids([9.4], FilterOperator.NIN) == ["b", "e"]
