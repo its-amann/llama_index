@@ -54,3 +54,16 @@ def test_quoted_fragment_stays_a_string():
 
 def test_complete_literal_array_unchanged():
     assert parse_partial_json('{"a": [true, false]}') == {"a": [True, False]}
+
+
+def test_fragment_words_inside_strings_are_untouched():
+    assert parse_partial_json('{"genre": "nu metal", "ok": tru') == {
+        "genre": "nu metal",
+        "ok": True,
+    }
+    assert parse_partial_json('{"a": "nu", "b": fals') == {"a": "nu", "b": False}
+
+
+def test_every_truncated_literal_completes():
+    assert parse_partial_json('{"a": tru, "b": fals}') == {"a": True, "b": False}
+    assert parse_partial_json('{"a": true, "b": nul') == {"a": True, "b": None}
